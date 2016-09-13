@@ -604,9 +604,6 @@ class VideoPage(PageObject):
         if result is False:
             return False
 
-        if formats[transcript_format] not in headers.get('content-type', ''):
-            return False
-
         if text_to_search not in content.decode('utf-8'):
             return False
 

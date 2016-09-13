@@ -491,15 +491,13 @@ class YouTubeVideoTest(VideoBaseTest):
         self.assertTrue(self.video.is_button_shown('transcript_button'))
         self._verify_caption_text('Welcome to edX.')
 
-    def test_download_transcript_button_works_correctly(self):
+    def test_download_srt_transcript_link_works_correctly(self):
         """
-        Scenario: Download Transcript button works correctly
+        Scenario: Download 'srt' transcript link works correctly.
         Given the course has Video components A and B in "Youtube" mode
         And Video component C in "HTML5" mode
         And I have defined downloadable transcripts for the videos
         Then I can download a transcript for Video A in "srt" format
-        And I can download a transcript for Video A in "txt" format
-        And I can download a transcript for Video B in "txt" format
         And the Download Transcript menu does not exist for Video C
         """
 
@@ -531,6 +529,37 @@ class YouTubeVideoTest(VideoBaseTest):
 
         # menu "download_transcript" doesn't exist
         self.assertFalse(self.video.is_menu_present('download_transcript'))
+
+    def test_download_txt_transcript_link_works_correctly(self):
+        """
+        Scenario: Download 'txt' transcript link works correctly.
+        Given the course has Video components A and B in "Youtube" mode
+        And I have defined downloadable transcripts for the videos
+        Then I can download a transcript for Video A in "txt" format
+        """
+
+        data_a = {'sub': '3_yD_cEKoCk', 'download_track': True}
+        youtube_a_metadata = self.metadata_for_mode('youtube', additional_data=data_a)
+        self.assets.append('subs_3_yD_cEKoCk.srt.sjson')
+
+        data_b = {'youtube_id_1_0': 'b7xgknqkQk8', 'sub': 'b7xgknqkQk8', 'download_track': True}
+        youtube_b_metadata = self.metadata_for_mode('youtube', additional_data=data_b)
+        self.assets.append('subs_b7xgknqkQk8.srt.sjson')
+
+        data_c = {'track': 'http://example.org/', 'download_track': True}
+        html5_c_metadata = self.metadata_for_mode('html5', additional_data=data_c)
+
+        self.contents_of_verticals = [
+            [{'display_name': 'A', 'metadata': youtube_a_metadata}],
+            [{'display_name': 'B', 'metadata': youtube_b_metadata}],
+            [{'display_name': 'C', 'metadata': html5_c_metadata}]
+        ]
+
+        # open the section with videos (open vertical containing video "A")
+        self.navigate_to_video()
+
+        # check if we can download transcript in "txt" format that has text "Welcome to edX."
+        self.assertTrue(self.video.downloaded_transcript_contains_text('txt', 'Welcome to edX.'))
 
     def _verify_caption_text(self, text):
         self.video._wait_for(

@@ -16,7 +16,7 @@ function(_) {
             return new VideoTranscriptDownloadHandler(element, options);
         }
 
-        _.bindAll(this, 'clickHandler', 'changeFileType');
+        _.bindAll(this, 'bindHandlers', 'clickHandler');
 
         this.container = element;
         this.options = options || {};
@@ -29,34 +29,29 @@ function(_) {
     };
 
     VideoTranscriptDownloadHandler.prototype = {
-        /** Initializes the module. */
+        // Initializes the module.
         initialize: function() {
             this.value = this.options.storage.getItem('transcript_download_format');
             this.el = this.container.find('.list-download-transcripts');
             this.bindHandlers();
         },
 
-        /** Bind any necessary function callbacks to DOM events. */
+        // Bind any necessary function callbacks to DOM events.
         bindHandlers: function() {
             // Attach click and keydown event handlers to individual menu items.
-            this.el
-                .on('click', '.btn-link', this.clickHandler);
+            this.el.on('click', '.btn-link', this.clickHandler);
         },
 
         // Various event handlers. We delay link clicks until tileType is set
         clickHandler: function(event) {
-            event.preventDefault();
-            this.changeFileType.call(this, event);
-        },
-
-        changeFileType: function(event) {
             var fileType = $(event.currentTarget).data('value'),
                 data = {transcript_download_format: fileType},
-                url = $(event.currentTarget).attr('href'),
+                downloadUrl = $(event.currentTarget).attr('href'),
                 that = this;
 
+            event.preventDefault();
+
             $.ajax({
-                async: false,
                 url: that.options.saveStateUrl,
                 type: 'POST',
                 dataType: 'json',
@@ -65,7 +60,7 @@ function(_) {
                     that.options.storage.setItem('transcript_download_format', fileType);
                 },
                 complete: function() {
-                    document.location.href = url;
+                    document.location.href = downloadUrl;
                 }
             });
         }
