@@ -598,7 +598,10 @@ class VideoPage(PageObject):
             'txt': 'text/plain',
         }
 
-        url = self.q(css=transcript_selector).attrs('href')[0]
+        link = self.q(css=transcript_selector)
+        url = link.attrs('href')[0]
+        link.click()
+
         result, headers, content = self._get_transcript(url)
 
         if result is False:
