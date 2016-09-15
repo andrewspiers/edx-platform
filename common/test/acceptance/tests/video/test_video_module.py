@@ -4,7 +4,7 @@
 Acceptance tests for Video.
 """
 import os
-import ddt
+from ddt import ddt, unpack, data
 
 from mock import patch
 from nose.plugins.attrib import attr
@@ -200,7 +200,7 @@ class VideoBaseTest(UniqueCourseTest):
 
 
 @attr(shard=4)
-@ddt.ddt
+@ddt
 class YouTubeVideoTest(VideoBaseTest):
     """ Test YouTube Video Player """
 
@@ -493,8 +493,9 @@ class YouTubeVideoTest(VideoBaseTest):
         self.assertTrue(self.video.is_button_shown('transcript_button'))
         self._verify_caption_text('Welcome to edX.')
 
-    @ddt.data(['srt', '00:00:00,260'], ['txt', 'Welcome to edX.'])
-    def test_download_transcript_links_work_correctly(self, value):
+    @data(('srt', '00:00:00,260'), ('txt', 'Welcome to edX.'))
+    @unpack
+    def test_download_transcript_links_work_correctly(self, file_type, search_text):
         """
         Scenario: Download 'srt' transcript link works correctly.
         Download 'txt' transcript link works correctly.
@@ -526,45 +527,13 @@ class YouTubeVideoTest(VideoBaseTest):
         self.navigate_to_video()
 
         # check if we can download transcript in "srt" format that has text "00:00:00,260"
-        self.assertTrue(self.video.downloaded_transcript_contains_text(value))
-        # self.assertTrue(self.video.downloaded_transcript_contains_text('srt', '00:00:00,260'))
+        self.assertTrue(self.video.downloaded_transcript_contains_text(file_type, search_text))
 
         # open vertical containing video "C"
         self.course_nav.go_to_vertical('Test Vertical-2')
 
         # menu "download_transcript" doesn't exist
         self.assertFalse(self.video.is_menu_present('download_transcript'))
-
-    # def test_download_txt_transcript_link_works_correctly(self):
-    #     """
-    #     Scenario: Download 'txt' transcript link works correctly.
-    #     Given the course has Video components A and B in "Youtube" mode
-    #     And I have defined downloadable transcripts for the videos
-    #     Then I can download a transcript for Video A in "txt" format
-    #     """
-    # 
-    #     data_a = {'sub': '3_yD_cEKoCk', 'download_track': True}
-    #     youtube_a_metadata = self.metadata_for_mode('youtube', additional_data=data_a)
-    #     self.assets.append('subs_3_yD_cEKoCk.srt.sjson')
-    # 
-    #     data_b = {'youtube_id_1_0': 'b7xgknqkQk8', 'sub': 'b7xgknqkQk8', 'download_track': True}
-    #     youtube_b_metadata = self.metadata_for_mode('youtube', additional_data=data_b)
-    #     self.assets.append('subs_b7xgknqkQk8.srt.sjson')
-    # 
-    #     data_c = {'track': 'http://example.org/', 'download_track': True}
-    #     html5_c_metadata = self.metadata_for_mode('html5', additional_data=data_c)
-    # 
-    #     self.contents_of_verticals = [
-    #         [{'display_name': 'A', 'metadata': youtube_a_metadata}],
-    #         [{'display_name': 'B', 'metadata': youtube_b_metadata}],
-    #         [{'display_name': 'C', 'metadata': html5_c_metadata}]
-    #     ]
-    # 
-    #     # open the section with videos (open vertical containing video "A")
-    #     self.navigate_to_video()
-    # 
-    #     # check if we can download transcript in "txt" format that has text "Welcome to edX."
-    #     self.assertTrue(self.video.downloaded_transcript_contains_text('txt', 'Welcome to edX.'))
 
     def _verify_caption_text(self, text):
         self.video._wait_for(
