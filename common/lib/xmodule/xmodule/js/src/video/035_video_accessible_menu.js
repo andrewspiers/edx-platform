@@ -16,7 +16,7 @@ function(_) {
             return new VideoTranscriptDownloadHandler(element, options);
         }
 
-        _.bindAll(this, 'bindHandlers', 'clickHandler');
+        _.bindAll(this, 'clickHandler');
 
         this.container = element;
         this.options = options || {};
@@ -33,35 +33,35 @@ function(_) {
         initialize: function() {
             this.value = this.options.storage.getItem('transcript_download_format');
             this.el = this.container.find('.list-download-transcripts');
-            this.bindHandlers();
+            this.clickHandler();
         },
 
-        // Bind any necessary function callbacks to DOM events.
-        bindHandlers: function() {
-            // Attach click and keydown event handlers to individual menu items.
-            this.el.on('click', '.btn-link', this.clickHandler);
-        },
+        // Event handler. We delay link clicks until the file type is set
+        clickHandler: function() {
+            var that = this,
+                fileType,
+                data,
+                downloadUrl;
 
-        // Various event handlers. We delay link clicks until tileType is set
-        clickHandler: function(event) {
-            var fileType = $(event.currentTarget).data('value'),
-                data = {transcript_download_format: fileType},
-                downloadUrl = $(event.currentTarget).attr('href'),
-                that = this;
+            this.el.on('click', '.btn-link', function(event) {
+                event.preventDefault();
 
-            event.preventDefault();
+                fileType = $(event.currentTarget).data('value');
+                data = {transcript_download_format: fileType};
+                downloadUrl = $(event.currentTarget).attr('href');
 
-            $.ajax({
-                url: that.options.saveStateUrl,
-                type: 'POST',
-                dataType: 'json',
-                data: data,
-                success: function() {
-                    that.options.storage.setItem('transcript_download_format', fileType);
-                },
-                complete: function() {
-                    document.location.href = downloadUrl;
-                }
+                $.ajax({
+                    url: that.options.saveStateUrl,
+                    type: 'POST',
+                    dataType: 'json',
+                    data: data,
+                    success: function() {
+                        that.options.storage.setItem('transcript_download_format', fileType);
+                    },
+                    complete: function() {
+                        document.location.href = downloadUrl;
+                    }
+                });
             });
         }
     };
