@@ -440,6 +440,7 @@ class @Problem
   gentle_alert: (msg) =>
     @el.find('.notification-gentle-alert .notification-message').html(msg)
     @gentleAlertNotification.show()
+    @gentleAlertNotification.focus()
 
   save: =>
     if not @submit_save_waitfor(@save_internal)
