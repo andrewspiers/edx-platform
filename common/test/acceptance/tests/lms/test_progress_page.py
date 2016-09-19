@@ -92,6 +92,10 @@ class ProgressPageBaseTest(UniqueCourseTest):
         return self.progress_page.scores(self.SECTION_NAME, self.SUBSECTION_NAME)
 
     def _check_progress_page_with_scored_problem(self):
+        """
+        Checks the progress page before and after answering
+        the course's first problem correctly.
+        """
         with self._logged_in_session():
             self.assertEqual(self._get_problem_scores(), [(0, 1), (0, 1)])
             self.assertEqual(self._get_section_score(), (0, 2))

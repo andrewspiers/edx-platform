@@ -7,7 +7,6 @@ import json
 from datetime import datetime, timedelta
 
 import ddt
-from capa.tests.response_xml_factory import MultipleChoiceResponseXMLFactory
 from nose.plugins.attrib import attr
 
 from ..helpers import UniqueCourseTest, EventsTestMixin, auto_auth, create_multiple_choice_problem
