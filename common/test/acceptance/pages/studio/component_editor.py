@@ -62,10 +62,12 @@ class ComponentEditorView(BaseComponentEditorView):
         Returns the index of the setting entry with given label (display name) within the Settings modal.
         """
         settings_button = self.q(css='.edit-xblock-modal .editor-modes .settings-button')
+        print settings_button.is_present()
         if settings_button.is_present():
             settings_button.click()
         setting_labels = self.q(css=self._bounded_selector('.metadata_edit .wrapper-comp-setting .setting-label'))
         for index, setting in enumerate(setting_labels):
+            print setting.text
             if setting.text == label:
                 return self.q(css=self._bounded_selector('.metadata_edit div.wrapper-comp-setting .setting-input'))[index]
         return None

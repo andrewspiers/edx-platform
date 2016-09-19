@@ -7,46 +7,17 @@ progress page.
 from contextlib import contextmanager
 
 import ddt
-from capa.tests.response_xml_factory import MultipleChoiceResponseXMLFactory
 
-from ..helpers import UniqueCourseTest
+from ..helpers import UniqueCourseTest, auto_auth, create_multiple_choice_problem
 from ...fixtures.course import CourseFixture, XBlockFixtureDesc
 from ...pages.common.logout import LogoutPage
 from ...pages.lms.courseware import CoursewarePage
 from ...pages.lms.instructor_dashboard import InstructorDashboardPage
 from ...pages.lms.problem import ProblemPage
 from ...pages.lms.progress import ProgressPage
-from ...pages.studio.auto_auth import AutoAuthPage
 from ...pages.studio.component_editor import ComponentEditorView
-from ...pages.studio.overview import CourseOutlinePage
 from ...pages.studio.utils import type_in_codemirror
-
-
-def create_multiple_choice_problem(problem_name):
-    """
-    Return the Multiple Choice Problem Descriptor, given the name of the problem.
-    """
-    factory = MultipleChoiceResponseXMLFactory()
-    xml_data = factory.build_xml(
-        question_text='The correct answer is Choice 2',
-        choices=[False, False, True, False],
-        choice_names=['choice_0', 'choice_1', 'choice_2', 'choice_3']
-    )
-
-    return XBlockFixtureDesc(
-        'problem',
-        problem_name,
-        data=xml_data,
-        metadata={'rerandomize': 'always'}
-    )
-
-
-def _auto_auth(browser, username, email, staff, course_id):
-    """
-    Logout and login with given credentials.
-    """
-    AutoAuthPage(browser, username=username, email=email,
-                 course_id=course_id, staff=staff).visit()
+from ...pages.studio.overview import CourseOutlinePage
 
 
 class ProgressPageBaseTest(UniqueCourseTest):
@@ -60,6 +31,7 @@ class ProgressPageBaseTest(UniqueCourseTest):
     SUBSECTION_NAME = 'Test Subsection 1'
     UNIT_NAME = 'Test Unit 1'
     PROBLEM_NAME = 'Test Problem 1'
+    PROBLEM_NAME_2 = 'Test Problem 2'
 
     def setUp(self):
         super(ProgressPageBaseTest, self).setUp()
@@ -87,14 +59,15 @@ class ProgressPageBaseTest(UniqueCourseTest):
             XBlockFixtureDesc('chapter', self.SECTION_NAME).add_children(
                 XBlockFixtureDesc('sequential', self.SUBSECTION_NAME).add_children(
                     XBlockFixtureDesc('vertical', self.UNIT_NAME).add_children(
-                        create_multiple_choice_problem(self.PROBLEM_NAME)
+                        create_multiple_choice_problem(self.PROBLEM_NAME),
+                        create_multiple_choice_problem(self.PROBLEM_NAME_2)
                     )
                 )
             )
         ).install()
 
         # Auto-auth register for the course.
-        _auto_auth(self.browser, self.USERNAME, self.EMAIL, False, self.course_id)
+        auto_auth(self.browser, self.USERNAME, self.EMAIL, False, self.course_id)
 
     def _answer_problem_correctly(self):
         """
@@ -111,12 +84,21 @@ class ProgressPageBaseTest(UniqueCourseTest):
         self.progress_page.visit()
         return self.progress_page.section_score(self.SECTION_NAME, self.SUBSECTION_NAME)
 
-    def _get_scores(self):
+    def _get_problem_scores(self):
         """
         Return a list of scores from the progress page.
         """
         self.progress_page.visit()
         return self.progress_page.scores(self.SECTION_NAME, self.SUBSECTION_NAME)
+
+    def _check_progress_page_with_scored_problem(self):
+        with self._logged_in_session():
+            self.assertEqual(self._get_problem_scores(), [(0, 1), (0, 1)])
+            self.assertEqual(self._get_section_score(), (0, 2))
+            self.courseware_page.visit()
+            self._answer_problem_correctly()
+            self.assertEqual(self._get_problem_scores(), [(1, 1), (0, 1)])
+            self.assertEqual(self._get_section_score(), (1, 2))
 
     @contextmanager
     def _logged_in_session(self, staff=False):
@@ -127,9 +109,9 @@ class ProgressPageBaseTest(UniqueCourseTest):
         self.logout_page.visit()
         try:
             if staff:
-                _auto_auth(self.browser, "STAFF_TESTER", "staff101@example.com", True, self.course_id)
+                auto_auth(self.browser, "STAFF_TESTER", "staff101@example.com", True, self.course_id)
             else:
-                _auto_auth(self.browser, self.USERNAME, self.EMAIL, False, self.course_id)
+                auto_auth(self.browser, self.USERNAME, self.EMAIL, False, self.course_id)
             yield
         finally:
             self.logout_page.visit()
@@ -140,13 +122,7 @@ class ProgressPageTest(ProgressPageBaseTest):
     Test that the progress page reports scores from completed assessments.
     """
     def test_progress_page_shows_scored_problems(self):
-        with self._logged_in_session():
-            self.assertEqual(self._get_scores(), [(0, 1)])
-            self.assertEqual(self._get_section_score(), (0, 1))
-            self.courseware_page.visit()
-            self._answer_problem_correctly()
-            self.assertEqual(self._get_scores(), [(1, 1)])
-            self.assertEqual(self._get_section_score(), (1, 1))
+        self._check_progress_page_with_scored_problem()
 
 
 @ddt.ddt
@@ -162,7 +138,7 @@ class PersistentGradesTest(ProgressPageBaseTest):
     def _change_subsection_structure(self):
         """
         Adds a unit to the subsection, which
-        should not affect a persisted subsectiong grade.
+        should not affect a persisted subsection grade.
         """
         with self._logged_in_session(staff=True):
             self.course_outline.visit()
@@ -190,9 +166,7 @@ class PersistentGradesTest(ProgressPageBaseTest):
             self.course_outline.visit()
             self.course_outline.section_at(0).subsection_at(0).expand_subsection()
             unit = self.course_outline.section_at(0).subsection_at(0).unit(self.UNIT_NAME).go_to()
-            container = unit.xblocks[0].go_to_container()
-            component = container.xblocks[0].children[0]
-
+            component = unit.xblocks[1]
             component.edit()
             component_editor = ComponentEditorView(self.browser, component.locator)
             component_editor.set_field_value_and_save('Problem Weight', 5)
@@ -213,13 +187,13 @@ class PersistentGradesTest(ProgressPageBaseTest):
             self.course_outline.section_at(0).subsection_at(0).expand_subsection()
             unit = self.course_outline.section_at(0).subsection_at(0).unit(self.UNIT_NAME).go_to()
             component = unit.xblocks[1]
-            edit_view = component.edit()
-
+            modal = component.edit()
             modified_content = "<p>modified content</p>"
             # Set content in the CodeMirror editor.
-            type_in_codemirror(self, 0, modified_content)
+            # HtmlComponentEditorView(self.browser, modal.locator).set_content_and_save(modified_content, raw=True)
 
-            edit_view.q(css='.action-save').click()
+            type_in_codemirror(self, 0, modified_content)
+            modal.q(css='.action-save').click()
 
     @ddt.data(
         _edit_problem_content,
@@ -229,68 +203,39 @@ class PersistentGradesTest(ProgressPageBaseTest):
     )
     def test_content_changes_do_not_change_score(self, edit):
         with self._logged_in_session():
-            self.assertEqual(self._get_scores(), [(0, 1)])
-            self.assertEqual(self._get_section_score(), (0, 1))
-            self.courseware_page.visit()
-            self._answer_problem_correctly()
-            self.assertEqual(self._get_scores(), [(1, 1)])
-            self.assertEqual(self._get_section_score(), (1, 1))
+            self._check_progress_page_with_scored_problem()
 
         edit(self)
 
         with self._logged_in_session():
-            self.assertEqual(self._get_scores(), [(1, 1)])
-            self.assertEqual(self._get_section_score(), (1, 1))
+            self.assertEqual(self._get_problem_scores(), [(1, 1), (0, 1)])
+            self.assertEqual(self._get_section_score(), (1, 2))
 
     def test_visibility_change_does_affect_score(self):
         with self._logged_in_session():
-            self.assertEqual(self._get_scores(), [(0, 1)])
-            self.assertEqual(self._get_section_score(), (0, 1))
-            self.courseware_page.visit()
-            self._answer_problem_correctly()
-            self.assertEqual(self._get_scores(), [(1, 1)])
-            self.assertEqual(self._get_section_score(), (1, 1))
+            self._check_progress_page_with_scored_problem()
 
         self._set_staff_lock_on_subsection(True)
 
         with self._logged_in_session():
-            self.assertEqual(self._get_scores(), None)
+            self.assertEqual(self._get_problem_scores(), None)
             self.assertEqual(self._get_section_score(), None)
 
         self._set_staff_lock_on_subsection(False)
 
         with self._logged_in_session():
-            self.assertEqual(self._get_scores(), [(1, 1)])
-            self.assertEqual(self._get_section_score(), (1, 1))
+            self.assertEqual(self._get_problem_scores(), [(1, 1), (0, 1)])
+            self.assertEqual(self._get_section_score(), (1, 2))
 
 
-class ExplicitGradedFieldTest(ProgressPageBaseTest):
+class SubsectionGradingPolicyTest(ProgressPageBaseTest):
     """
     Tests changing a subsection's 'graded' field
     and the effect it has on the progress page.
     """
     def setUp(self):
-        super(ExplicitGradedFieldTest, self).setUp()
+        super(SubsectionGradingPolicyTest, self).setUp()
         self._set_policy_for_subsection("Homework")
-
-    def test_explicit_graded_field_does_not_affect_score(self):
-        with self._logged_in_session():
-            self.assertEqual(self._get_scores(), [(0, 1)])
-            self.assertEqual(self._get_section_score(), (0, 1))
-            self.assertTrue(self.progress_page.text_on_page("Homework 1 - Test Subsection 1 - 0% (0/1)"))
-            self.courseware_page.visit()
-            self._answer_problem_correctly()
-            self.assertEqual(self._get_scores(), [(1, 1)])
-            self.assertEqual(self._get_section_score(), (1, 1))
-            self.assertTrue(self.progress_page.text_on_page("Homework 1 - Test Subsection 1 - 100% (1/1)"))
-
-        self._set_policy_for_subsection("Not Graded")
-
-        with self._logged_in_session():
-            self.progress_page.visit()
-            self.assertEqual(self._get_scores(), [(1, 1)])
-            self.assertEqual(self._get_section_score(), (1, 1))
-            self.assertFalse(self.progress_page.text_on_page("Homework 1 - Test Subsection 1"))
 
     def _set_policy_for_subsection(self, policy):
         """
@@ -302,3 +247,28 @@ class ExplicitGradedFieldTest(ProgressPageBaseTest):
             modal = self.course_outline.section_at(0).subsection_at(0).edit()
             modal.policy = policy
             modal.save()
+
+    def test_subsection_grading_policy_on_progress_page(self):
+        with self._logged_in_session():
+            self.assertEqual(self._get_problem_scores(), [(0, 1), (0, 1)])
+            self.assertEqual(self._get_section_score(), (0, 2))
+            self.assertTrue(self.progress_page.text_on_page("Homework 1 - Test Subsection 1 - 0% (0/2)"))
+            self.courseware_page.visit()
+            self._answer_problem_correctly()
+            self.assertEqual(self._get_problem_scores(), [(1, 1), (0, 1)])
+            self.assertEqual(self._get_section_score(), (1, 2))
+            self.assertTrue(self.progress_page.text_on_page("Homework 1 - Test Subsection 1 - 50% (1/2)"))
+
+        self._set_policy_for_subsection("Not Graded")
+
+        with self._logged_in_session():
+            self.progress_page.visit()
+            self.assertEqual(self._get_problem_scores(), [(1, 1), (0, 1)])
+            self.assertEqual(self._get_section_score(), (1, 2))
+            self.assertFalse(self.progress_page.text_on_page("Homework 1 - Test Subsection 1"))
+
+        self._set_policy_for_subsection("Homework")
+        with self._logged_in_session():
+            self.assertEqual(self._get_problem_scores(), [(1, 1), (0, 1)])
+            self.assertEqual(self._get_section_score(), (1, 2))
+            self.assertTrue(self.progress_page.text_on_page("Homework 1 - Test Subsection 1 - 50% (1/2)"))
