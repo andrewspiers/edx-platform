@@ -40,6 +40,7 @@
         defineDependency('gettext', 'gettext');
         defineDependency('Logger', 'logger');
         defineDependency('URI', 'URI');
+        defineDependency('jquery.url', 'url');
         defineDependency('Backbone', 'backbone');
 
         // Add the UI Toolkit helper classes that have been installed in the 'edx' namespace
@@ -74,7 +75,6 @@
             'jquery.scrollTo': 'common/js/vendor/jquery.scrollTo',
             'jquery.cookie': 'js/vendor/jquery.cookie',
             'jquery.timeago': 'js/vendor/jquery.timeago',
-            'jquery.url': 'js/vendor/url.min',
             'jquery.ui': 'js/vendor/jquery-ui.min',
             'jquery.iframe-transport': 'js/vendor/jQuery-File-Upload/js/jquery.iframe-transport',
             'jquery.fileupload': 'js/vendor/jQuery-File-Upload/js/jquery.fileupload',
