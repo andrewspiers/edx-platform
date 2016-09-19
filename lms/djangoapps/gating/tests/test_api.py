@@ -6,12 +6,12 @@ from nose.plugins.attrib import attr
 from ddt import ddt, data, unpack
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
-from courseware.tests.helpers import LoginEnrollmentTestCase
+from courseware.tests.helpers import LoginEnrollmentTestCase, get_request_for_user
 
+from lms.djangoapps.grades.tests.utils import answer_problem
 from milestones import api as milestones_api
 from milestones.tests.utils import MilestonesTestCaseMixin
 from openedx.core.lib.gating import api as gating_api
-from gating.api import _get_xblock_parent, evaluate_prerequisite
 
 
 class GatingTestCase(LoginEnrollmentTestCase, ModuleStoreTestCase):
@@ -78,43 +78,18 @@ class GatingTestCase(LoginEnrollmentTestCase, ModuleStoreTestCase):
         )
 
 
-class TestGetXBlockParent(GatingTestCase):
-    """
-    Tests for the get_xblock_parent function
-    """
-
-    def test_get_direct_parent(self):
-        """ Test test_get_direct_parent """
-
-        result = _get_xblock_parent(self.vert1)
-        self.assertEqual(result.location, self.seq1.location)
-
-    def test_get_parent_with_category(self):
-        """ Test test_get_parent_of_category """
-
-        result = _get_xblock_parent(self.vert1, 'sequential')
-        self.assertEqual(result.location, self.seq1.location)
-        result = _get_xblock_parent(self.vert1, 'chapter')
-        self.assertEqual(result.location, self.chapter1.location)
-
-    def test_get_parent_none(self):
-        """ Test test_get_parent_none """
-
-        result = _get_xblock_parent(self.vert1, 'unit')
-        self.assertIsNone(result)
-
-
 @attr(shard=3)
 @ddt
-class TestEvaluatePrerequisite(GatingTestCase, MilestonesTestCaseMixin):
+class TestHandleSubsectionGradeUpdates(GatingTestCase, MilestonesTestCaseMixin):
     """
-    Tests for the evaluate_prerequisite function
+    Tests for subsection grade updates.
     """
 
     def setUp(self):
-        super(TestEvaluatePrerequisite, self).setUp()
+        super(TestHandleSubsectionGradeUpdates, self).setUp()
         self.user_dict = {'id': self.user.id}
         self.prereq_milestone = None
+        self.request = get_request_for_user(self.user)
 
     def _setup_gating_milestone(self, min_score):
         """
@@ -125,52 +100,44 @@ class TestEvaluatePrerequisite(GatingTestCase, MilestonesTestCaseMixin):
         gating_api.set_required_content(self.course.id, self.seq2.location, self.seq1.location, min_score)
         self.prereq_milestone = gating_api.get_gating_milestone(self.course.id, self.seq1.location, 'fulfills')
 
-    @patch('gating.api.get_module_score')
-    @data((.5, True), (1, True), (0, False))
-    @unpack
-    def test_min_score_achieved(self, module_score, result, mock_module_score):
-        """ Test test_min_score_achieved """
+    def test_signal_handler_called(self):
+        with patch('lms.djangoapps.gating.signals.gating_api.evaluate_prerequisite') as mock_handler:
+            self.assertFalse(mock_handler.called)
+            answer_problem(self.course, self.request, self.prob1, 1, 1)
+            self.assertTrue(mock_handler.called)
 
+    @data((1, 2, True), (1, 1, True), (0, 1, False))
+    @unpack
+    def test_min_score_achieved(self, earned, max_possible, result):
         self._setup_gating_milestone(50)
 
-        mock_module_score.return_value = module_score
-        evaluate_prerequisite(self.course, self.prob1.location, self.user.id)
+        self.assertFalse(milestones_api.user_has_milestone(self.user_dict, self.prereq_milestone))
+        answer_problem(self.course, self.request, self.prob1, earned, max_possible)
         self.assertEqual(milestones_api.user_has_milestone(self.user_dict, self.prereq_milestone), result)
 
     @patch('gating.api.log.warning')
-    @patch('gating.api.get_module_score')
-    @data((.5, False), (1, True))
+    @data((1, 2, False), (1, 1, True))
     @unpack
-    def test_invalid_min_score(self, module_score, result, mock_module_score, mock_log):
-        """ Test test_invalid_min_score """
-
+    def test_invalid_min_score(self, earned, max_possible, result, mock_log):
         self._setup_gating_milestone(None)
 
-        mock_module_score.return_value = module_score
-        evaluate_prerequisite(self.course, self.prob1.location, self.user.id)
+        answer_problem(self.course, self.request, self.prob1, earned, max_possible)
         self.assertEqual(milestones_api.user_has_milestone(self.user_dict, self.prereq_milestone), result)
         self.assertTrue(mock_log.called)
 
-    @patch('gating.api.get_module_score')
-    def test_orphaned_xblock(self, mock_module_score):
-        """ Test test_orphaned_xblock """
+    def test_orphaned_xblock(self):
+        with patch('lms.djangoapps.gating.signals.gating_api.evaluate_prerequisite') as mock_handler:
+            self.assertFalse(mock_handler.called)
+            answer_problem(self.course, self.request, self.prob2, 1, 1)
+            self.assertFalse(mock_handler.called)
 
-        evaluate_prerequisite(self.course, self.prob2.location, self.user.id)
-        self.assertFalse(mock_module_score.called)
+    @patch('gating.api.milestones_helpers')
+    def test_no_prerequisites(self, mock_milestones):
+        answer_problem(self.course, self.request, self.prob1, 1, 1)
+        self.assertFalse(mock_milestones.called)
 
-    @patch('gating.api.get_module_score')
-    def test_no_prerequisites(self, mock_module_score):
-        """ Test test_no_prerequisites """
-
-        evaluate_prerequisite(self.course, self.prob1.location, self.user.id)
-        self.assertFalse(mock_module_score.called)
-
-    @patch('gating.api.get_module_score')
-    def test_no_gated_content(self, mock_module_score):
-        """ Test test_no_gated_content """
-
-        # Setup gating milestones data
+    @patch('gating.api.milestones_helpers')
+    def test_no_gated_content(self, mock_milestones):
         gating_api.add_prerequisite(self.course.id, self.seq1.location)
-
-        evaluate_prerequisite(self.course, self.prob1.location, self.user.id)
-        self.assertFalse(mock_module_score.called)
+        answer_problem(self.course, self.request, self.prob1, 1, 1)
+        self.assertFalse(mock_milestones.called)
