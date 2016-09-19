@@ -33,7 +33,7 @@ function(_) {
         initialize: function() {
             this.value = this.options.storage.getItem('transcript_download_format');
             this.el = this.container.find('.list-download-transcripts');
-            this.clickHandler();
+            this.el.on('click', '.btn-link', this.clickHandler);
         },
 
         // Event handler. We delay link clicks until the file type is set
@@ -43,25 +43,23 @@ function(_) {
                 data,
                 downloadUrl;
 
-            this.el.on('click', '.btn-link', function(event) {
-                event.preventDefault();
+            event.preventDefault();
 
-                fileType = $(event.currentTarget).data('value');
-                data = {transcript_download_format: fileType};
-                downloadUrl = $(event.currentTarget).attr('href');
+            fileType = $(event.target).data('value');
+            data = {transcript_download_format: fileType};
+            downloadUrl = $(event.target).attr('href');
 
-                $.ajax({
-                    url: that.options.saveStateUrl,
-                    type: 'POST',
-                    dataType: 'json',
-                    data: data,
-                    success: function() {
-                        that.options.storage.setItem('transcript_download_format', fileType);
-                    },
-                    complete: function() {
-                        document.location.href = downloadUrl;
-                    }
-                });
+            $.ajax({
+                url: this.options.saveStateUrl,
+                type: 'POST',
+                dataType: 'json',
+                data: data,
+                success: function() {
+                    that.options.storage.setItem('transcript_download_format', fileType);
+                },
+                complete: function() {
+                    document.location.href = downloadUrl;
+                }
             });
         }
     };
