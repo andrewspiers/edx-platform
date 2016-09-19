@@ -188,10 +188,9 @@ class PersistentGradesTest(ProgressPageBaseTest):
             unit = self.course_outline.section_at(0).subsection_at(0).unit(self.UNIT_NAME).go_to()
             component = unit.xblocks[1]
             modal = component.edit()
-            modified_content = "<p>modified content</p>"
-            # Set content in the CodeMirror editor.
-            # HtmlComponentEditorView(self.browser, modal.locator).set_content_and_save(modified_content, raw=True)
 
+            # Set content in the CodeMirror editor.
+            modified_content = "<p>modified content</p>"
             type_in_codemirror(self, 0, modified_content)
             modal.q(css='.action-save').click()
 
