@@ -3,7 +3,7 @@
 <%! from django.utils.translation import ugettext as _ %>
 
 <div class="notification ${notification_type} ${'notification-'}${notification_name}"
-     tabindex="-1">
+     tabindex="-1" ${'style="display: none"'if notification_name == 'error' else '' } >
     <span class="icon fa ${notification_icon}" aria-hidden="true"></span>
     <span class="notification-message" aria-describedby="${ id }-problem-title">${notification_message}
     </span>

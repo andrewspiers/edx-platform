@@ -28,7 +28,7 @@ class @Problem
     problem_prefix = @element_id.replace(/problem_/,'')
     @inputs = @$("[id^='input_#{problem_prefix}_']")
     @$('div.action button').click @refreshAnswers
-    @reviewButton = @$('.action .review-btn')
+    @reviewButton = @$('.notification-btn.review-btn')
     @reviewButton.click @scroll_to_problem_meta
     @submitButton = @$('.action .submit')
     @submitButtonLabel = @$('.action .submit .submit-label')
