@@ -37,7 +37,7 @@ function(_) {
         },
 
         // Event handler. We delay link clicks until the file type is set
-        clickHandler: function() {
+        clickHandler: function(event) {
             var that = this,
                 fileType,
                 data,
