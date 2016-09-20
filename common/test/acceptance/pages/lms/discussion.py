@@ -542,10 +542,15 @@ class InlineDiscussionPage(PageObject):
 
 
 class InlineDiscussionThreadPage(DiscussionThreadPage):
-    def __init__(self, browser, thread_id):
+    def __init__(self, browser, thread_id, discussion_id):
         super(InlineDiscussionThreadPage, self).__init__(
             browser,
             "body.courseware .discussion-module #thread_{thread_id}".format(thread_id=thread_id)
+        )
+        self._discussion_selector = (
+            ".discussion-module[data-discussion-id='{discussion_id}'] ".format(
+                discussion_id=discussion_id
+            )
         )
 
     def expand(self):
@@ -558,6 +563,13 @@ class InlineDiscussionThreadPage(DiscussionThreadPage):
 
     def is_thread_anonymous(self):
         return not self.q(css=".posted-details > .username").present
+
+    def _find_within(self, selector):
+        """
+        Returns a query corresponding to the given CSS selector within the scope
+        of this discussion page
+        """
+        return self.q(css=self._discussion_selector + " " + selector)
 
     def click_element(self, selector):
         self.wait_for_element_presence(

@@ -169,7 +169,7 @@ NewPostView */
                 });
                 $discussion = _.template($('#inline-discussion-template').html())({
                     'threads': response.discussion_data,
-                     can_create_thread: response.can_create_thread,
+                    can_create_thread: response.can_create_thread,
                     'discussionId': discussionId
                 });
                 if (this.$('section.discussion').length) {

@@ -8,6 +8,7 @@ from uuid import uuid4
 from nose.plugins.attrib import attr
 from pytz import UTC
 from flaky import flaky
+import mock
 
 from common.test.acceptance.tests.discussion.helpers import BaseDiscussionTestCase
 from common.test.acceptance.tests.helpers import UniqueCourseTest
@@ -1044,7 +1045,7 @@ class InlineDiscussionTest(UniqueCourseTest, DiscussionResponsePaginationTestMix
         self.discussion_page.expand_discussion()
         self.block.has_permission = lambda perm: True
         # Add a Post link is present
-        self.assertTrue(self.discussion_page._is_element_visible(".new-post-btn"))
+        self.assertTrue(self.discussion_page.is_element_visible(".new-post-btn"))
 
     def test_initial_render(self):
         self.assertFalse(self.discussion_page.is_discussion_expanded())
