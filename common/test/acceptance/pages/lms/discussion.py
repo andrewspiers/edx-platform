@@ -521,9 +521,6 @@ class InlineDiscussionPage(PageObject):
     def element_exists(self, selector):
         return self.q(css=self._discussion_selector + " " + selector).present
 
-    def is_new_post_opened(self):
-        return self._find_within(".new-post-article").visible
-
     def click_element(self, selector):
         self.wait_for_element_presence(
             "{discussion} {selector}".format(discussion=self._discussion_selector, selector=selector),
@@ -536,13 +533,6 @@ class InlineDiscussionPage(PageObject):
         EmptyPromise(
             lambda: not self.is_new_post_opened(),
             "New post closed"
-        ).fulfill()
-
-    def click_new_post_button(self):
-        self.click_element(".new-post-btn")
-        EmptyPromise(
-            self.is_new_post_opened,
-            "New post opened"
         ).fulfill()
 
     @wait_for_js
@@ -568,6 +558,23 @@ class InlineDiscussionThreadPage(DiscussionThreadPage):
 
     def is_thread_anonymous(self):
         return not self.q(css=".posted-details > .username").present
+
+    def click_element(self, selector):
+        self.wait_for_element_presence(
+            "{discussion} {selector}".format(discussion=self._discussion_selector, selector=selector),
+            "{selector} is visible".format(selector=selector)
+        )
+        self._find_within(selector).click()
+
+    def is_new_post_opened(self):
+        return self._find_within(".new-post-article").visible
+
+    def click_new_post_button(self):
+        self.click_element(".new-post-btn")
+        EmptyPromise(
+            self.is_new_post_opened,
+            "New post opened"
+        ).fulfill()
 
     @wait_for_js
     def check_if_selector_is_focused(self, selector):

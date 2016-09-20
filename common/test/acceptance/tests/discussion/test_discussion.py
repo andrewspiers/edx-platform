@@ -999,6 +999,9 @@ class InlineDiscussionTest(UniqueCourseTest, DiscussionResponsePaginationTestMix
         self.discussion_page = InlineDiscussionPage(self.browser, self.discussion_id)
         self.additional_discussion_page = InlineDiscussionPage(self.browser, self.additional_discussion_id)
 
+        self.has_permission_mock = mock.Mock()
+        self.block.has_permission = self.has_permission_mock
+
     def setup_thread_page(self, thread_id):
         self.discussion_page.expand_discussion()
         self.assertEqual(self.discussion_page.get_num_displayed_threads(), 1)
@@ -1041,8 +1044,7 @@ class InlineDiscussionTest(UniqueCourseTest, DiscussionResponsePaginationTestMix
         self.discussion_page.expand_discussion()
         self.block.has_permission = lambda perm: True
         # Add a Post link is present
-        self.assertFalse(self.discussion_page._is_element_visible(".new-post-btn"))
-
+        self.assertTrue(self.discussion_page._is_element_visible(".new-post-btn"))
 
     def test_initial_render(self):
         self.assertFalse(self.discussion_page.is_discussion_expanded())
@@ -1089,7 +1091,7 @@ class InlineDiscussionTest(UniqueCourseTest, DiscussionResponsePaginationTestMix
             [Comment(id="comment1", user_id="other"), Comment(id="comment2", user_id=self.user_id)])
         thread_fixture.push()
         self.setup_thread_page(thread.get("id"))
-        self.assertFalse(self.discussion_page.element_exists(".new-post-btn"))
+        self.assertFalse(self.thread_page.element_exists(".new-post-btn"))
         self.assertFalse(self.thread_page.has_add_response_button())
         self.assertFalse(self.thread_page.is_response_editable("response1"))
         self.assertFalse(self.thread_page.is_add_comment_visible("response1"))
